@@ -42,10 +42,54 @@ as.integer(unlist(strsplit(im.train[1], " ")))
 # We can therefore use a multi core approach using a new library.
 
 library(foreach)
+im.train <- foreach(im=im.train, .combine=rbind) %do% {
+	as.integer(unlist(strsplit(im, " ")))
+}
+str(im.train)
+
+# Repeat the process for test.csv.
+d.test  <- read.csv(test.file, stringsAsFactors=F)
+im.test <- foreach(im = d.test$Image, .combine=rbind) %do% {
+    as.integer(unlist(strsplit(im, " ")))
+}
+d.test$Image <- NULL
+
+#------------------- save data ---------------------
+
+# Save the data as a R data file at this point, 
+# so no need to repeat this process again
+
+save(d.train, im.train, d.test, im.test, file='data.Rd')
+
+# load data
+# load('data.Rd')
+
+#------------------- visualize --------------------
+
+# To visualize each image, we thus need to first convert 
+# these 9216 integers into a 96x96 matrix
+
+im <- matrix(data=rev(im.train[1,]), nrow=96, ncol=96)
+image(1:96, 1:96, im, col=gray((0:255)/255))
+
+# check1
+points(96-d.train$nose_tip_x[1],         96-d.train$nose_tip_y[1],         col="red")
+points(96-d.train$left_eye_center_x[1],  96-d.train$left_eye_center_y[1],  col="blue")
+points(96-d.train$right_eye_center_x[1], 96-d.train$right_eye_center_y[1], col="green")
+
+# check2
+for(i in 1:nrow(d.train)) {
+    points(96-d.train$nose_tip_x[i], 96-d.train$nose_tip_y[i], col="red")
+}
+
+# check3
+idx <- which.max(d.train$nose_tip_x) # Easter egg for min value.
+im  <- matrix(data=rev(im.train[idx,]), nrow=96, ncol=96)
+image(1:96, 1:96, im, col=gray((0:255)/255))
+points(96-d.train$nose_tip_x[idx], 96-d.train$nose_tip_y[idx], col="red")
+
+#--------------- simple benchmark ------------------
 
 
 
-
-
-
-TBD
+# TBD
