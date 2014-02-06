@@ -90,6 +90,42 @@ points(96-d.train$nose_tip_x[idx], 96-d.train$nose_tip_y[idx], col="red")
 
 #--------------- simple benchmark ------------------
 
+# One of the simplest things to try is to compute 
+# the mean of the coordinates of each keypoint in the training set
+# and use that as a prediction for all images. 
+# This is a very simplistic algorithm, as it completely ignores the images, 
+# but we can use it a starting point to build a first submission.
+
+colMeans(d.train, na.rm=T) # colMeans (na.rm=T tells colMeans to ignore missing values)
+
+# To build a submission file we need to apply 
+# these computed coordinates to the test instances.
+
+p           <- matrix(data=colMeans(d.train, na.rm=T), nrow=nrow(d.test), ncol=ncol(d.train), byrow=T)
+colnames(p) <- names(d.train)
+predictions <- data.frame(ImageId = 1:nrow(d.test), p)
+head(predictions)
+
+#---------------- shape up the submission ----------------
+
+library(reshape2)
+submission <- melt(predictions, id.vars="ImageId", variable.name="FeatureName", value.name="Location")
+head(submission)
+
+example.submission <- read.csv(paste0(data.dir, 'IdLookupTable.csv'))
+#sub.col.names = names(example.submission)
+sub.col.names = c("RowId","Location")
+example.submission$Location <- NULL
+submission <- merge(example.submission, submission, all.x=T, sort=F)
+submission <- submission[, sub.col.names]
+write.csv(submission, file="C:/data/submission_means.csv", quote=F, row.names=F)
+
+# This submission should deliver a Score = 3.96244.
+
+
+
+
+
 
 
 # TBD
