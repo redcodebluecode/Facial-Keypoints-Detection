@@ -120,12 +120,75 @@ submission <- merge(example.submission, submission, all.x=T, sort=F)
 submission <- submission[, sub.col.names]
 write.csv(submission, file="C:/data/submission_means.csv", quote=F, row.names=F)
 
-# This submission should deliver a Score = 3.96244.
+#---------------- using image patches ------------------
 
+# The idea is to extract a patch around this keypoint in each image, and average the result.
+# This average_patch can then be used as a mask to search for the keypoint in test images.
 
+coord <- "left_eye_center"
+patch_size <- 10
+coord_x <- paste(coord, "x", sep="_")
+coord_y <- paste(coord, "y", sep="_")
+patches <- foreach (i = 1:nrow(d.train), .combine=rbind) %do% {
+    im  <- matrix(data = im.train[i,], nrow=96, ncol=96)
+    x   <- d.train[i, coord_x]
+    y   <- d.train[i, coord_y]
+    x1  <- (x-patch_size)
+    x2  <- (x+patch_size)
+    y1  <- (y-patch_size)
+    y2  <- (y+patch_size)
+    if ( (!is.na(x)) && (!is.na(y)) && (x1>=1) && (x2<=96) && (y1>=1) && (y2<=96) )
+    {
+        as.vector(im[x1:x2, y1:y2])
+    }
+    else
+    {
+        NULL
+    }
+}
+mean.patch <- matrix(data = colMeans(patches), nrow=2*patch_size+1, ncol=2*patch_size+1)
 
+# This foreach loop will get each image and:
+# > extract the coordinates of the keypoint: x and y
+# > compute the coordinates of the patch: x1, y1, x2 and y2
+# > check if the coordinates are available (is.na) and are inside the image
+# > if yes, return the image patch as a vector; if no, return NULL
 
+# > All the non-NULL vectors will then be combined with rbind,
+# which concatenates them as rows. 
+# The result patches will be a matrix where each row is a patch of an image.
+# We then compute the mean of all images with colMeans, 
+# put back in matrix format and store in mean.patch.
 
+image(1:21, 1:21, mean.patch[21:1,21:1], col=gray((0:255)/255))
 
+#---------------- search for the same kypoint in the test images ----------------------
 
-# TBD
+search_size <- 2
+mean_x <- mean(d.train[, coord_x], na.rm=T)
+mean_y <- mean(d.train[, coord_y], na.rm=T)
+x1     <- as.integer(mean_x)-search_size
+x2     <- as.integer(mean_x)+search_size
+y1     <- as.integer(mean_y)-search_size
+y2     <- as.integer(mean_y)+search_size
+params <- expand.grid(x = x1:x2, y = y1:y2)
+params
+
+im <- matrix(data = im.test[1,], nrow=96, ncol=96)
+
+r  <- foreach(j = 1:nrow(params), .combine=rbind) %dopar% {
+    x     <- params$x[j]
+    y     <- params$y[j]
+    p     <- im[(x-patch_size):(x+patch_size), (y-patch_size):(y+patch_size)]
+    score <- cor(as.vector(p), as.vector(mean.patch))
+    score <- ifelse(is.na(score), 0, score)
+    data.frame(x, y, score)
+}
+
+r
+best <- r[which.max(r$score), c("x", "y")]
+best
+
+#--------------------- image patch way goes big ---------------------
+# Please refer to the other R script.
+# The END/La Fin/El Final
